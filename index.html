@@ -1,0 +1,1723 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ciudad de Letras</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tone.js CDN for audio generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <style>
+        /* Custom styles for the game */
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(to bottom right, #87CEEB, #ADD8E6); /* Sky blue gradient */
+            /* Removed overflow: hidden from body to allow scrolling if needed */
+        }
+
+        .game-container {
+            background-color: #fff;
+            border-radius: 20px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+            width: 95%;
+            max-width: 1000px;
+            height: 90vh;
+            max-height: 700px;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto; /* Changed to auto to allow vertical scrolling */
+            position: relative;
+        }
+
+        .game-screen {
+            width: 100%;
+            height: 100%;
+            display: none; /* Hidden by default, JavaScript will show/hide */
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            box-sizing: border-box;
+            text-align: center;
+            position: absolute;
+            top: 0;
+            left: 0;
+            background-color: #fff; /* Ensure screen backgrounds are white */
+        }
+
+        .game-screen.active {
+            display: flex;
+        }
+
+        /* Home Screen */
+        #home-screen {
+            /* Changed to simple gradient to remove any placeholder text/numbers */
+            background: linear-gradient(to bottom right, #87CEEB, #ADD8E6);
+            color: #4B0082; /* Adjusted text color for better contrast */
+            text-shadow: none; /* Removed text shadow */
+        }
+
+        #home-screen h1 {
+            font-size: 3.5rem;
+            margin-bottom: 20px;
+            color: #4B0082; /* Indigo */
+        }
+
+        #home-screen p {
+            color: #333; /* Adjusted text color for better contrast */
+        }
+
+        #home-screen button {
+            background-color: #FFD700; /* Gold */
+            color: #8B0000; /* Dark Red */
+            padding: 15px 40px;
+            font-size: 2rem;
+            border-radius: 50px;
+            border: none;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 5px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        #home-screen button:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.4);
+        }
+
+        /* Map Screen */
+        #map-screen {
+            background: url('https://placehold.co/1000x700/90EE90/000000?text=Mapa+de+Actividades') no-repeat center center / cover;
+            justify-content: flex-start;
+            padding-top: 50px;
+        }
+
+        .map-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            width: 80%;
+            max-width: 400px;
+        }
+
+        .map-buttons button {
+            width: 100%;
+            padding: 20px;
+            font-size: 1.5rem;
+            border-radius: 15px;
+            border: 3px solid #4B0082;
+            background-color: #FFD700;
+            color: #4B0082;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.2s;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .map-buttons button:hover:not(:disabled) {
+            background-color: #FFA500; /* Orange */
+            transform: translateY(-3px);
+        }
+
+        .map-buttons button:disabled {
+            background-color: #ccc;
+            border-color: #999;
+            color: #666;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        /* Activity/Evaluation Screens General */
+        .activity-header {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 20px;
+            background-color: #f0f0f0;
+            border-bottom: 1px solid #ddd;
+            border-radius: 15px 15px 0 0;
+            position: absolute;
+            top: 0;
+            left: 0;
+            box-sizing: border-box;
+        }
+
+        .activity-header h2 {
+            font-size: 1.8rem;
+            color: #4B0082;
+            margin: 0;
+        }
+
+        .activity-controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        .activity-controls button {
+            padding: 10px 20px;
+            font-size: 1rem;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .activity-controls .reset-btn {
+            background-color: #FF6347; /* Tomato */
+            color: white;
+        }
+
+        .activity-controls .reset-btn:hover {
+            background-color: #E55337;
+        }
+
+        .activity-controls .continue-btn {
+            background-color: #32CD32; /* Lime Green */
+            color: white;
+        }
+
+        .activity-controls .continue-btn:hover:not(:disabled) {
+            background-color: #28A745;
+        }
+
+        .activity-controls .continue-btn:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        .activity-content {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            padding: 20px;
+            box-sizing: border-box;
+            margin-top: 60px; /* Space for header */
+        }
+
+        /* Activity 1 - Mimi el Robot */
+        #activity1-content p {
+            font-size: 1.8rem;
+            line-height: 1.6;
+            max-width: 800px;
+            text-align: justify;
+            color: #333;
+        }
+
+        #activity1-content span.word {
+            cursor: pointer;
+            padding: 3px 5px;
+            border-radius: 5px;
+            transition: background-color 0.2s, color 0.2s;
+        }
+
+        #activity1-content span.word:hover {
+            background-color: #FFD700;
+        }
+
+        #activity1-content span.word.correct {
+            background-color: #90EE90; /* Light Green */
+            color: #006400; /* Dark Green */
+            font-weight: bold;
+        }
+
+        #activity1-content #mimi-robot-status {
+            font-size: 1.2rem;
+            margin-top: 20px;
+            color: #555;
+        }
+
+        /* Activity 2 - Tren de las Sílabas */
+        #syllable-train-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            width: 100%;
+        }
+
+        #word-target-area {
+            display: flex;
+            gap: 10px;
+            min-height: 60px;
+            border: 2px dashed #4B0082;
+            border-radius: 10px;
+            padding: 10px;
+            align-items: center;
+            justify-content: center;
+            width: 80%;
+            max-width: 500px;
+            background-color: #f9f9f9;
+        }
+
+        .syllable-slot {
+            width: 80px;
+            height: 50px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #eee;
+            font-size: 1.5rem;
+            color: #555;
+        }
+
+        .draggable-syllable {
+            background-color: #FFD700;
+            color: #4B0082;
+            padding: 10px 20px;
+            border-radius: 10px;
+            cursor: grab;
+            font-size: 1.5rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: transform 0.1s;
+        }
+
+        .draggable-syllable:active {
+            cursor: grabbing;
+            transform: scale(1.05);
+        }
+
+        #syllable-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 20px;
+            width: 100%;
+        }
+
+        #train-animation {
+            width: 100%;
+            height: 80px;
+            background-color: #D3D3D3; /* Light Gray for tracks */
+            border-radius: 10px;
+            margin-top: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #train-image {
+            position: absolute;
+            left: -100px; /* Start off-screen */
+            top: 0;
+            height: 100%;
+            width: 100px; /* Approximate train width */
+            /* Updated train image to use an emoji */
+            background: none; /* Remove previous background image */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 4rem; /* Make emoji large */
+            transition: transform 3s linear;
+        }
+
+        #train-image.moving {
+            transform: translateX(calc(100% + 100px)); /* Move across screen */
+        }
+
+        #syllable-train-status {
+            font-size: 1.2rem;
+            margin-top: 10px;
+            color: #555;
+        }
+
+        /* Activity 3 - Eco Mágico */
+        #echo-magic-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            width: 100%;
+        }
+
+        #phoneme-display {
+            font-size: 2.5rem;
+            color: #4B0082;
+            margin-bottom: 20px;
+        }
+
+        #phoneme-options {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            width: 100%;
+        }
+
+        .letter-option {
+            background-color: #ADD8E6; /* Light Blue */
+            color: #4B0082;
+            padding: 20px 30px;
+            border-radius: 15px;
+            font-size: 2rem;
+            cursor: pointer;
+            border: 2px solid #4B0082;
+            transition: background-color 0.2s, transform 0.2s;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .letter-option:hover {
+            background-color: #87CEEB;
+            transform: translateY(-3px);
+        }
+
+        .letter-option.correct-answer {
+            background-color: #90EE90;
+            border-color: #006400;
+        }
+
+        .letter-option.incorrect-answer {
+            background-color: #FF6347;
+            border-color: #8B0000;
+        }
+
+        #echo-magic-status {
+            font-size: 1.2rem;
+            margin-top: 20px;
+            color: #555;
+        }
+
+        /* Evaluation 1 - Desafío del Barrio Secreto */
+        #eval1-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            width: 100%;
+        }
+
+        .eval-question {
+            font-size: 1.8rem;
+            color: #333;
+            margin-bottom: 15px;
+        }
+
+        .eval-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+            width: 100%;
+        }
+
+        .eval-option-btn {
+            background-color: #FFD700;
+            color: #4B0082;
+            padding: 15px 25px;
+            border-radius: 10px;
+            font-size: 1.2rem;
+            cursor: pointer;
+            border: 2px solid #4B0082;
+            transition: background-color 0.2s, transform 0.2s;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .eval-option-btn:hover:not(:disabled) {
+            background-color: #FFA500;
+            transform: translateY(-3px);
+        }
+
+        .eval-option-btn.selected {
+            background-color: #ADD8E6;
+            border-color: #4B0082;
+        }
+
+        .eval-option-btn.correct-feedback {
+            background-color: #90EE90;
+            border-color: #006400;
+        }
+
+        .eval-option-btn.incorrect-feedback {
+            background-color: #FF6347;
+            border-color: #8B0000;
+        }
+
+        #eval1-status {
+            font-size: 1.2rem;
+            margin-top: 20px;
+            color: #555;
+        }
+
+        #eval1-submit-btn {
+            background-color: #4B0082;
+            color: white;
+            padding: 15px 30px;
+            font-size: 1.5rem;
+            border-radius: 15px;
+            margin-top: 20px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        #eval1-submit-btn:hover {
+            background-color: #6A0DAD;
+        }
+
+        /* Evaluation 2 - Taller de Palabras Mágicas */
+        #eval2-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            width: 100%;
+        }
+
+        #sentence-target-area {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            min-height: 80px;
+            border: 2px dashed #4B0082;
+            border-radius: 10px;
+            padding: 15px;
+            align-items: center;
+            justify-content: center;
+            width: 90%;
+            max-width: 700px;
+            background-color: #f9f9f9;
+            font-size: 1.8rem;
+            color: #333;
+        }
+
+        .draggable-word {
+            background-color: #ADD8E6;
+            color: #4B0082;
+            padding: 10px 20px;
+            border-radius: 10px;
+            cursor: grab;
+            font-size: 1.5rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: transform 0.1s;
+        }
+
+        .draggable-word:active {
+            cursor: grabbing;
+            transform: scale(1.05);
+        }
+
+        #word-options-eval2 {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 20px;
+            width: 100%;
+        }
+
+        #eval2-status {
+            font-size: 1.2rem;
+            margin-top: 10px;
+            color: #555;
+        }
+
+        /* Final Screen */
+        #final-screen {
+            background: linear-gradient(to bottom right, #FFD700, #FFA500); /* Gold to Orange */
+            color: #8B0000;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
+        }
+
+        #final-screen h1 {
+            font-size: 3.5rem;
+            margin-bottom: 20px;
+        }
+
+        #diploma-container {
+            margin-top: 30px;
+            background-color: #fff;
+            border: 5px solid #4B0082;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+        }
+
+        #diploma-canvas {
+            border: 1px solid #ccc;
+            background-color: #f9f9f9;
+            border-radius: 10px;
+        }
+
+        #diploma-download-btn, #back-to-start-btn {
+            background-color: #4B0082;
+            color: white;
+            padding: 15px 30px;
+            font-size: 1.5rem;
+            border-radius: 15px;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.2s;
+            box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2);
+            margin-top: 10px;
+        }
+
+        #diploma-download-btn:hover, #back-to-start-btn:hover {
+            background-color: #6A0DAD;
+            transform: translateY(-3px);
+        }
+
+        /* Message Box */
+        #message-box {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 20px 30px;
+            border-radius: 15px;
+            font-size: 1.5rem;
+            text-align: center;
+            z-index: 1000;
+            display: none;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+        }
+
+        #message-box.show {
+            display: block;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .game-container {
+                width: 98%;
+                height: 95vh;
+            }
+
+            #home-screen h1 {
+                font-size: 2.5rem;
+            }
+
+            #home-screen button {
+                padding: 10px 25px;
+                font-size: 1.5rem;
+            }
+
+            .activity-header h2 {
+                font-size: 1.4rem;
+            }
+
+            .activity-controls button {
+                padding: 8px 15px;
+                font-size: 0.9rem;
+            }
+
+            #activity1-content p {
+                font-size: 1.4rem;
+            }
+
+            .draggable-syllable, .letter-option, .eval-option-btn, .draggable-word {
+                font-size: 1.2rem;
+                padding: 10px 15px;
+            }
+
+            #phoneme-display {
+                font-size: 2rem;
+            }
+
+            #eval1-submit-btn, #diploma-download-btn, #back-to-start-btn {
+                font-size: 1.2rem;
+                padding: 10px 20px;
+            }
+
+            #final-screen h1 {
+                font-size: 2.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <!-- Message Box -->
+        <div id="message-box" class="rounded-xl"></div>
+
+        <!-- Home Screen -->
+        <div id="home-screen" class="game-screen active">
+            <h1>Ciudad de Letras</h1>
+            <p class="text-xl mb-8">¡Aprende y diviértete con las palabras!</p>
+            <button id="start-game-btn">Empezar</button>
+        </div>
+
+        <!-- Map Screen -->
+        <div id="map-screen" class="game-screen">
+            <h2 class="text-4xl font-bold text-purple-800 mb-10">Mapa de Actividades</h2>
+            <div class="map-buttons">
+                <button id="map-btn-act1" data-activity="activity1">1. Mimi el Robot</button>
+                <button id="map-btn-act2" data-activity="activity2" disabled>2. Tren de las Sílabas</button>
+                <button id="map-btn-act3" data-activity="activity3" disabled>3. Eco Mágico</button>
+                <button id="map-btn-eval1" data-activity="evaluation1" disabled>Evaluación 1: Desafío del Barrio Secreto</button>
+                <button id="map-btn-eval2" data-activity="evaluation2" disabled>Evaluación 2: Taller de Palabras Mágicas</button>
+            </div>
+        </div>
+
+        <!-- Activity 1 - Mimi el Robot -->
+        <div id="activity1-screen" class="game-screen">
+            <div class="activity-header">
+                <h2>Mimi el Robot</h2>
+                <div class="activity-controls">
+                    <button class="reset-btn" onclick="resetActivity1()">Resetear</button>
+                    <button class="continue-btn" id="act1-continue-btn" disabled onclick="showScreen('map')">Continuar</button>
+                </div>
+            </div>
+            <div class="activity-content" id="activity1-content">
+                <p id="mimi-story"></p>
+                <p id="mimi-robot-status">Aciertos: 0/5</p>
+            </div>
+        </div>
+
+        <!-- Activity 2 - Tren de las Sílabas -->
+        <div id="activity2-screen" class="game-screen">
+            <div class="activity-header">
+                <h2>Tren de las Sílabas</h2>
+                <div class="activity-controls">
+                    <button class="reset-btn" onclick="resetActivity2()">Resetear</button>
+                    <button class="continue-btn" id="act2-continue-btn" disabled onclick="showScreen('map')">Continuar</button>
+                </div>
+            </div>
+            <div class="activity-content" id="activity2-content">
+                <p class="text-xl text-gray-700 mb-4">Arrastra las sílabas para formar la palabra:</p>
+                <div id="word-target-area" class="rounded-xl"></div>
+                <div id="syllable-options" class="rounded-xl"></div>
+                <div id="train-animation" class="rounded-xl">
+                    <div id="train-image">🚂</div> <!-- Train emoji added here -->
+                </div>
+                <p id="syllable-train-status">Palabras correctas: 0/3</p>
+            </div>
+        </div>
+
+        <!-- Activity 3 - Eco Mágico -->
+        <div id="activity3-screen" class="game-screen">
+            <div class="activity-header">
+                <h2>Eco Mágico</h2>
+                <div class="activity-controls">
+                    <button class="reset-btn" onclick="resetActivity3()">Resetear</button>
+                    <button class="continue-btn" id="act3-continue-btn" disabled onclick="showScreen('map')">Continuar</button>
+                </div>
+            </div>
+            <div class="activity-content" id="activity3-content">
+                <p class="text-xl text-gray-700 mb-4">Escucha el sonido y elige la letra correcta:</p>
+                <button onclick="playCurrentPhoneme()" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-full text-2xl mb-8 shadow-lg">
+                    🔊 Escuchar Fonema
+                </button>
+                <div id="phoneme-options" class="rounded-xl"></div>
+                <p id="echo-magic-status">Preguntas correctas: 0/5</p>
+            </div>
+        </div>
+
+        <!-- Evaluation 1 - Desafío del Barrio Secreto -->
+        <div id="evaluation1-screen" class="game-screen">
+            <div class="activity-header">
+                <h2>Desafío del Barrio Secreto</h2>
+                <div class="activity-controls">
+                    <button class="reset-btn" onclick="resetEvaluation1()">Resetear</button>
+                    <button class="continue-btn" id="eval1-continue-btn" disabled onclick="showScreen('map')">Continuar</button>
+                </div>
+            </div>
+            <div class="activity-content" id="eval1-content">
+                <div id="eval1-question-container" class="w-full max-w-xl">
+                    <p id="eval1-question-text" class="eval-question"></p>
+                    <div id="eval1-options" class="eval-options"></div>
+                </div>
+                <p id="eval1-status">Pregunta 1/5</p>
+                <button id="eval1-submit-btn" class="rounded-xl" onclick="submitEval1Answer()">Siguiente</button>
+            </div>
+        </div>
+
+        <!-- Evaluation 2 - Taller de Palabras Mágicas -->
+        <div id="evaluation2-screen" class="game-screen">
+            <div class="activity-header">
+                <h2>Taller de Palabras Mágicas</h2>
+                <div class="activity-controls">
+                    <button class="reset-btn" onclick="resetEvaluation2()">Resetear</button>
+                    <button class="continue-btn" id="eval2-continue-btn" disabled onclick="showScreen('final')">Finalizar</button>
+                </div>
+            </div>
+            <div class="activity-content" id="eval2-content">
+                <p class="text-xl text-gray-700 mb-4">Arrastra las palabras para formar la oración:</p>
+                <div id="sentence-target-area" class="rounded-xl"></div>
+                <div id="word-options-eval2" class="rounded-xl"></div>
+                <p id="eval2-status">Oración correcta: 0/1</p>
+            </div>
+        </div>
+
+        <!-- Final Screen -->
+        <div id="final-screen" class="game-screen">
+            <h1 class="text-white">¡Felicidades!</h1>
+            <p class="text-white text-2xl mb-8">¡Has completado la Ciudad de Letras!</p>
+            <div id="diploma-container" class="rounded-xl">
+                <h3 class="text-3xl font-bold text-purple-800">Diploma de Conciencia Fonológica</h3>
+                <canvas id="diploma-canvas" width="600" height="400" class="rounded-xl"></canvas>
+                <input type="text" id="player-name-input" placeholder="Tu nombre" class="p-2 border rounded-md text-lg w-64 text-center">
+                <button id="generate-diploma-btn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md shadow-md">Generar Diploma</button>
+                <button id="diploma-download-btn" class="rounded-xl">Descargar Diploma</button>
+            </div>
+            <button id="back-to-start-btn" class="rounded-xl">Volver al inicio</button>
+        </div>
+    </div>
+
+    <script>
+        // Global game state
+        let currentScreen = 'home';
+        let completedActivities = {
+            activity1: false,
+            activity2: false,
+            activity3: false,
+            evaluation1: false,
+            evaluation2: false
+        };
+
+        // Audio setup with Tone.js
+        let backgroundMusic;
+        let correctSound;
+        let incorrectSound;
+        let bellSound;
+        let celebrationSound;
+        let phonemeOscillator; // Oscillator for phoneme sounds
+
+        // Speech Synthesis setup
+        const synth = window.speechSynthesis;
+        let utterance = new SpeechSynthesisUtterance();
+        utterance.lang = 'es-ES'; // Set language to Spanish
+
+        // Message Box
+        const messageBox = document.getElementById('message-box');
+
+        function showMessage(message, type = 'info', duration = 2000) {
+            messageBox.textContent = message;
+            messageBox.className = 'rounded-xl show'; // Reset classes and show
+            if (type === 'success') {
+                messageBox.classList.add('bg-green-600');
+            } else if (type === 'error') {
+                messageBox.classList.add('bg-red-600');
+            } else {
+                messageBox.classList.add('bg-gray-800');
+            }
+            setTimeout(() => {
+                messageBox.classList.remove('show');
+                messageBox.className = 'rounded-xl'; // Clear specific type classes
+            }, duration);
+        }
+
+        // Initialize Tone.js synths (but don't start audio context yet)
+        function initializeAudioSynths() {
+            try {
+                console.log('Audio: Initializing Tone.js synths...');
+                // Background Music (soft, looping)
+                backgroundMusic = new Tone.Synth().toDestination();
+                backgroundMusic.oscillator.type = "sine";
+                backgroundMusic.envelope.attack = 0.5;
+                backgroundMusic.envelope.decay = 0.1;
+                backgroundMusic.envelope.sustain = 0.2;
+                backgroundMusic.envelope.release = 1;
+                backgroundMusic.volume.value = -15; // Soft volume
+
+                // Correct Answer Sound
+                correctSound = new Tone.Synth().toDestination();
+                correctSound.oscillator.type = "triangle";
+                correctSound.envelope.attack = 0.01;
+                correctSound.envelope.decay = 0.2;
+                correctSound.envelope.sustain = 0.1;
+                correctSound.envelope.release = 0.5;
+
+                // Incorrect Answer Sound
+                incorrectSound = new Tone.Synth().toDestination();
+                incorrectSound.oscillator.type = "sawtooth";
+                incorrectSound.envelope.attack = 0.01;
+                incorrectSound.envelope.decay = 0.2;
+                incorrectSound.envelope.sustain = 0.1;
+                incorrectSound.envelope.release = 0.5;
+
+                // Bell Sound (for train)
+                bellSound = new Tone.MetalSynth().toDestination();
+                bellSound.envelope.decay = 0.8;
+                bellSound.envelope.release = 0.8;
+
+                // Celebration Sound
+                celebrationSound = new Tone.PolySynth(Tone.Synth).toDestination();
+                celebrationSound.volume.value = -10;
+
+                // Oscillator for phoneme sounds
+                phonemeOscillator = new Tone.Oscillator().toDestination();
+                phonemeOscillator.type = "sine"; // Simple sine wave for clarity
+                phonemeOscillator.volume.value = -10; // Adjust volume
+                console.log('Audio: Tone.js synths initialized successfully.');
+            } catch (e) {
+                console.error('Audio: Error initializing Tone.js synths:', e);
+            }
+        }
+
+        // Play a sound using a Tone.Synth (for correct/incorrect, etc.)
+        async function playSynthSound(synthInstance, note = "C4", duration = "8n") {
+            try {
+                if (Tone.context.state !== 'running') {
+                    console.log('Audio: Resuming Tone.context for synth sound...');
+                    await Tone.start();
+                    await Tone.context.resume();
+                    console.log('Audio: Tone.context resumed.');
+                }
+                if (synthInstance && typeof synthInstance.triggerAttackRelease === 'function') {
+                    synthInstance.triggerAttackRelease(note, duration);
+                    console.log(`Audio: Played synth sound: ${note}`);
+                } else {
+                    console.error('Audio: Synth instance is not valid or lacks triggerAttackRelease:', synthInstance);
+                }
+            } catch (e) {
+                console.error("Audio: Error playing synth sound:", e);
+            }
+        }
+
+        // Play a sound using a Tone.Oscillator (for phonemes)
+        async function playOscillatorSound(oscillatorInstance, frequency, duration = "0.3s") {
+            try {
+                if (Tone.context.state !== 'running') {
+                    console.log('Audio: Resuming Tone.context for oscillator sound...');
+                    await Tone.start();
+                    await Tone.context.resume();
+                    console.log('Audio: Tone.context resumed.');
+                }
+                if (oscillatorInstance && typeof oscillatorInstance.start === 'function' && typeof oscillatorInstance.stop === 'function') {
+                    oscillatorInstance.frequency.value = frequency;
+                    oscillatorInstance.start();
+                    console.log(`Audio: Played oscillator sound: ${frequency} Hz`);
+                    Tone.Transport.scheduleOnce(() => {
+                        oscillatorInstance.stop();
+                        console.log(`Audio: Stopped oscillator sound: ${frequency} Hz`);
+                    }, Tone.Transport.now() + Tone.Time(duration).toSeconds());
+                } else {
+                    console.error('Audio: Oscillator instance is not valid or lacks start/stop methods:', oscillatorInstance);
+                }
+            } catch (e) {
+                console.error("Audio: Error playing oscillator sound:", e);
+            }
+        }
+
+
+        // Text-to-Speech function
+        function speak(text) {
+            console.log(`Speech: Attempting to speak: "${text}"`);
+            if (synth.speaking) {
+                synth.cancel();
+                console.log('Speech: Canceled previous speech.');
+            }
+            utterance.text = text;
+            synth.speak(utterance);
+            utterance.onend = () => {
+                console.log(`Speech: Finished speaking: "${text}"`);
+            };
+            utterance.onerror = (event) => {
+                console.error('Speech: Error speaking:', event.error);
+            };
+        }
+
+        // Screen management
+        function showScreen(screenId) {
+            document.querySelectorAll('.game-screen').forEach(screen => {
+                screen.classList.remove('active');
+            });
+            document.getElementById(`${screenId}-screen`).classList.add('active');
+            currentScreen = screenId;
+            console.log(`Screen: Showing screen: ${screenId}`);
+
+            // Specific actions when showing screens
+            if (screenId === 'home') {
+                if (Tone.Transport.state === 'started') {
+                    Tone.Transport.stop(); // Stop background music when back to home
+                    console.log('Audio: Background music stopped (home screen).');
+                }
+            } else if (screenId === 'map') {
+                updateMapButtons();
+                // Start background music loop only if not already started
+                if (Tone.Transport.state !== 'started') {
+                    console.log('Audio: Starting background music loop...');
+                    Tone.Transport.scheduleRepeat(time => {
+                        if (backgroundMusic) { // Added check for backgroundMusic object
+                            backgroundMusic.triggerAttackRelease("C4", "2n", time);
+                            backgroundMusic.triggerAttackRelease("E4", "2n", time + 0.5);
+                            backgroundMusic.triggerAttackRelease("G4", "2n", time + 1);
+                            backgroundMusic.triggerAttackRelease("C5", "2n", time + 1.5);
+                        }
+                    }, "2s");
+                    Tone.Transport.start();
+                    console.log('Audio: Background music loop started.');
+                }
+            } else if (screenId === 'final') {
+                playSynthSound(celebrationSound, ["C5", "E5", "G5", "C6"], "2s");
+                drawDiploma(); // Draw initial diploma
+            }
+        }
+
+        // Update map button states based on completed activities
+        function updateMapButtons() {
+            document.getElementById('map-btn-act2').disabled = !completedActivities.activity1;
+            document.getElementById('map-btn-act3').disabled = !completedActivities.activity2;
+            document.getElementById('map-btn-eval1').disabled = !completedActivities.activity3;
+            document.getElementById('map-btn-eval2').disabled = !completedActivities.evaluation1;
+            console.log('Map buttons updated. Completed activities:', completedActivities);
+        }
+
+        // Event Listeners for navigation
+        document.getElementById('start-game-btn').addEventListener('click', async () => {
+            // Start audio context on user interaction
+            try {
+                if (Tone.context.state !== 'running') {
+                    console.log('Audio: Attempting to start Tone.context from start button...');
+                    await Tone.start();
+                    await Tone.context.resume();
+                    console.log('Audio: Tone.context started/resumed successfully from start button.');
+                }
+                // Start Tone.Transport after context is running
+                if (Tone.Transport.state !== 'started') {
+                    Tone.Transport.start();
+                    console.log('Audio: Tone.Transport started.');
+                }
+
+                playSynthSound(correctSound, "G5", "4n"); // Short, cheerful start sound
+                showScreen('map');
+            } catch (e) {
+                console.error('Audio: Error starting audio context on start button click:', e);
+                showMessage('Error al iniciar el audio. Por favor, recarga la página.', 'error');
+            }
+        });
+
+        document.querySelectorAll('.map-buttons button').forEach(button => {
+            button.addEventListener('click', (event) => {
+                const activityId = event.target.dataset.activity;
+                if (!event.target.disabled) {
+                    showScreen(activityId);
+                    // Initialize specific activity when navigated to
+                    if (activityId === 'activity1') initActivity1();
+                    if (activityId === 'activity2') initActivity2();
+                    if (activityId === 'activity3') initActivity3();
+                    if (activityId === 'evaluation1') initEvaluation1();
+                    if (activityId === 'evaluation2') initEvaluation2();
+                } else {
+                    showMessage('¡Completa la actividad anterior primero!', 'info');
+                }
+            });
+        });
+
+        document.getElementById('back-to-start-btn').addEventListener('click', () => {
+            // Reset all game progress
+            completedActivities = {
+                activity1: false,
+                activity2: false,
+                activity3: false,
+                evaluation1: false,
+                evaluation2: false
+            };
+            showScreen('home');
+        });
+
+        /* --- Activity 1: Mimi el Robot --- */
+        let mimiStory = "Mimi, el robot, ama la miel. Mamá le dio una manzana. Mimi movió su mano y miró la luna.";
+        let mimiWords = []; // Stores word elements
+        let mimiCorrectCount = 0;
+        const mimiTargetPhoneme = '/m/';
+        const mimiWordsWithPhoneme = ["Mimi", "ama", "miel", "Mamá", "manzana", "movió", "mano", "miró"];
+
+        function initActivity1() {
+            mimiCorrectCount = 0;
+            document.getElementById('mimi-robot-status').textContent = `Aciertos: ${mimiCorrectCount}/5`;
+            document.getElementById('act1-continue-btn').disabled = true;
+
+            const storyContainer = document.getElementById('mimi-story');
+            storyContainer.innerHTML = ''; // Clear previous content
+            mimiWords = []; // Reset word elements array
+
+            mimiStory.split(' ').forEach(wordText => {
+                const span = document.createElement('span');
+                span.textContent = wordText + ' '; // Add space back
+                span.classList.add('word');
+                span.addEventListener('click', () => handleMimiWordClick(span, wordText.replace(/[.,!?"']/g, ''))); // Clean word
+                storyContainer.appendChild(span);
+                mimiWords.push(span);
+            });
+            console.log('Activity 1 initialized.');
+        }
+
+        function handleMimiWordClick(wordElement, word) {
+            if (wordElement.classList.contains('correct')) {
+                // Already clicked and correct, do nothing
+                return;
+            }
+
+            // Simple check if word contains 'm' (case-insensitive)
+            const isCorrect = mimiWordsWithPhoneme.includes(word);
+
+            if (isCorrect) {
+                playSynthSound(correctSound, "C5");
+                speak(word);
+                wordElement.classList.add('correct');
+                mimiCorrectCount++;
+                document.getElementById('mimi-robot-status').textContent = `Aciertos: ${mimiCorrectCount}/5`;
+                console.log('Mimi correct count:', mimiCorrectCount);
+                if (mimiCorrectCount >= 5) {
+                    completedActivities.activity1 = true;
+                    document.getElementById('act1-continue-btn').disabled = false;
+                    showMessage('¡Actividad 1 completada! Puedes continuar.', 'success'); // Added message
+                    console.log('Activity 1 completed:', completedActivities.activity1);
+                }
+            } else {
+                playSynthSound(incorrectSound, "C3");
+                showMessage(`La palabra "${word}" no contiene el fonema ${mimiTargetPhoneme}.`, 'error');
+            }
+        }
+
+        function resetActivity1() {
+            initActivity1(); // Re-initialize the activity
+            showMessage('Actividad 1 reiniciada.', 'info');
+        }
+
+        /* --- Activity 2: Tren de las Sílabas --- */
+        const syllableWords = [
+            { word: "mesa", syllables: ["me", "sa"] },
+            { word: "pato", syllables: ["pa", "to"] },
+            { word: "casa", syllables: ["ca", "sa"] }
+        ];
+        let currentSyllableWordIndex = 0;
+        let correctWordsCount = 0; // This is for display only, completion is by currentSyllableWordIndex
+        let draggedElement = null;
+
+        function initActivity2() {
+            currentSyllableWordIndex = 0;
+            correctWordsCount = 0;
+            document.getElementById('syllable-train-status').textContent = `Palabras correctas: ${correctWordsCount}/3`;
+            document.getElementById('act2-continue-btn').disabled = true;
+            loadCurrentSyllableWord();
+            console.log('Activity 2 initialized.');
+        }
+
+        function loadCurrentSyllableWord() {
+            const wordTargetArea = document.getElementById('word-target-area');
+            const syllableOptions = document.getElementById('syllable-options');
+            wordTargetArea.innerHTML = '';
+            syllableOptions.innerHTML = '';
+
+            if (currentSyllableWordIndex < syllableWords.length) {
+                const currentWord = syllableWords[currentSyllableWordIndex];
+
+                // Create syllable slots
+                currentWord.syllables.forEach(() => {
+                    const slot = document.createElement('div');
+                    slot.classList.add('syllable-slot', 'rounded-md');
+                    slot.dataset.filled = 'false';
+                    wordTargetArea.appendChild(slot);
+                });
+
+                // Create draggable syllables (shuffled)
+                const shuffledSyllables = [...currentWord.syllables].sort(() => Math.random() - 0.5);
+                shuffledSyllables.forEach(syllable => {
+                    const draggable = document.createElement('div');
+                    draggable.classList.add('draggable-syllable', 'rounded-lg');
+                    draggable.textContent = syllable;
+                    draggable.setAttribute('draggable', true);
+                    draggable.addEventListener('dragstart', handleDragStart);
+                    syllableOptions.appendChild(draggable);
+                });
+
+                // Add drag and drop listeners to target area
+                wordTargetArea.addEventListener('dragover', handleDragOver);
+                wordTargetArea.addEventListener('drop', handleDrop);
+                console.log(`Loading word: ${currentWord.word} (Syllables: ${currentWord.syllables.join(', ')})`);
+            } else {
+                // All words completed
+                completedActivities.activity2 = true;
+                document.getElementById('act2-continue-btn').disabled = false;
+                showMessage('¡Actividad 2 completada! Puedes continuar.', 'success'); // Added message
+                console.log('Activity 2 completed:', completedActivities.activity2);
+            }
+        }
+
+        function handleDragStart(event) {
+            draggedElement = event.target;
+            event.dataTransfer.setData('text/plain', event.target.textContent);
+            event.dataTransfer.effectAllowed = 'move';
+        }
+
+        function handleDragOver(event) {
+            event.preventDefault(); // Allow drop
+            event.dataTransfer.dropEffect = 'move';
+        }
+
+        function handleDrop(event) {
+            event.preventDefault();
+            if (draggedElement) {
+                const wordTargetArea = document.getElementById('word-target-area');
+                const slots = Array.from(wordTargetArea.children);
+
+                // Find the first empty slot
+                const targetSlot = slots.find(slot => slot.dataset.filled === 'false');
+
+                if (targetSlot) {
+                    targetSlot.textContent = draggedElement.textContent;
+                    targetSlot.dataset.filled = 'true';
+                    draggedElement.remove(); // Remove from options
+
+                    checkSyllableWordCompletion();
+                }
+                draggedElement = null; // Reset dragged element
+            }
+        }
+
+        function checkSyllableWordCompletion() {
+            const wordTargetArea = document.getElementById('word-target-area');
+            const slots = Array.from(wordTargetArea.children);
+            const formedSyllables = slots.map(slot => slot.textContent).filter(text => text !== '');
+
+            if (formedSyllables.length === syllableWords[currentSyllableWordIndex].syllables.length) {
+                const formedWord = formedSyllables.join('');
+                if (formedWord === syllableWords[currentSyllableWordIndex].word) {
+                    playSynthSound(correctSound, "E5");
+                    playSynthSound(bellSound, "C4"); // Train bell sound
+                    speak(formedWord);
+                    showMessage('¡Palabra correcta!', 'success');
+                    correctWordsCount++;
+                    document.getElementById('syllable-train-status').textContent = `Palabras correctas: ${correctWordsCount}/3`;
+                    console.log('Syllable train correct words count:', correctWordsCount);
+
+                    // Animate train
+                    const trainImage = document.getElementById('train-image');
+                    trainImage.classList.add('moving');
+                    setTimeout(() => {
+                        trainImage.classList.remove('moving');
+                        trainImage.style.transform = 'translateX(-100px)'; // Reset position
+                        currentSyllableWordIndex++;
+                        loadCurrentSyllableWord(); // Load next word
+                    }, 3000); // Match CSS transition duration
+                } else {
+                    playSynthSound(incorrectSound, "C3");
+                    showMessage('¡Palabra incorrecta! Intenta de nuevo.', 'error');
+                    // Reset slots and options for retry
+                    setTimeout(loadCurrentSyllableWord, 1000);
+                }
+            }
+        }
+
+        function resetActivity2() {
+            initActivity2();
+            showMessage('Actividad 2 reiniciada.', 'info');
+        }
+
+        /* --- Activity 3: Eco Mágico --- */
+        // Expanded phonemes to include common consonants
+        const phonemes = ["a", "e", "i", "o", "u", "m", "p", "s", "l", "t", "r", "n", "d", "b", "f"];
+        // Add a mapping for phonemes to example words for speaking
+        const phonemeToWordMap = {
+            "a": "ala",
+            "e": "elefante",
+            "i": "iglesia",
+            "o": "oso",
+            "u": "uva",
+            "m": "mamá",
+            "p": "papá",
+            "s": "sol",
+            "l": "luna",
+            "t": "taza",
+            "r": "ratón",
+            "n": "nido",
+            "d": "dedo",
+            "b": "barco",
+            "f": "foca"
+        };
+        // Add a simple frequency map for distinct tones
+        const phonemeFreqMap = {
+            "a": 220, "e": 247, "i": 262, "o": 294, "u": 330, // C4, D4, E4, F4, G4
+            "m": 349, "p": 370, "s": 392, "l": 415, "t": 440, // F4#, G4#, A4, A4#, B4
+            "r": 466, "n": 494, "d": 523, "b": 554, "f": 587  // C5, C5#, D5, D5#, E5
+        };
+
+        let echoMagicQuestions = [];
+        let currentEchoMagicQuestionIndex = 0;
+        let echoMagicCorrectCount = 0;
+
+        function generateEchoMagicQuestions() {
+            echoMagicQuestions = [];
+            for (let i = 0; i < 5; i++) {
+                const correctPhoneme = phonemes[Math.floor(Math.random() * phonemes.length)];
+                let options = [correctPhoneme];
+                while (options.length < 3) {
+                    const randomPhoneme = phonemes[Math.floor(Math.random() * phonemes.length)];
+                    if (!options.includes(randomPhoneme)) {
+                        options.push(randomPhoneme);
+                    }
+                }
+                options.sort(() => Math.random() - 0.5); // Shuffle options
+                echoMagicQuestions.push({
+                    phoneme: correctPhoneme,
+                    options: options
+                });
+            }
+        }
+
+        function initActivity3() {
+            echoMagicCorrectCount = 0;
+            currentEchoMagicQuestionIndex = 0;
+            document.getElementById('echo-magic-status').textContent = `Preguntas correctas: ${echoMagicCorrectCount}/5`;
+            document.getElementById('act3-continue-btn').disabled = true;
+            generateEchoMagicQuestions();
+            loadEchoMagicQuestion();
+            console.log('Activity 3 initialized.');
+        }
+
+        function loadEchoMagicQuestion() {
+            if (currentEchoMagicQuestionIndex < echoMagicQuestions.length) {
+                const question = echoMagicQuestions[currentEchoMagicQuestionIndex];
+                const optionsContainer = document.getElementById('phoneme-options');
+                optionsContainer.innerHTML = '';
+
+                question.options.forEach(option => {
+                    const button = document.createElement('button');
+                    button.classList.add('letter-option', 'rounded-xl');
+                    button.textContent = option.toUpperCase();
+                    button.addEventListener('click', () => handleEchoMagicAnswer(option, question.phoneme, button));
+                    optionsContainer.appendChild(button);
+                });
+                playCurrentPhoneme(); // Play phoneme automatically
+                console.log(`Loading phoneme question: ${question.phoneme} (Options: ${question.options.join(', ')})`);
+            } else {
+                // Activity finished
+                if (echoMagicCorrectCount >= 3) {
+                    completedActivities.activity3 = true;
+                    document.getElementById('act3-continue-btn').disabled = false;
+                    showMessage('¡Actividad 3 completada! Desbloqueaste la Evaluación 1. Puedes continuar.', 'success'); // Added message
+                    console.log('Activity 3 completed:', completedActivities.activity3);
+                } else {
+                    showMessage('Necesitas al menos 3 aciertos para continuar. ¡Intenta de nuevo!', 'error');
+                    resetActivity3(); // Reset if not enough correct answers
+                }
+            }
+            document.getElementById('echo-magic-status').textContent = `Preguntas correctas: ${echoMagicCorrectCount}/${currentEchoMagicQuestionIndex}`;
+        }
+
+        function playCurrentPhoneme() {
+            if (currentEchoMagicQuestionIndex < echoMagicQuestions.length) {
+                const phoneme = echoMagicQuestions[currentEchoMagicQuestionIndex].phoneme;
+                const exampleWord = phonemeToWordMap[phoneme];
+                const frequency = phonemeFreqMap[phoneme] || 440; // Default to A4 if not found
+
+                if (exampleWord) {
+                    // Speak the example word
+                    speak(exampleWord);
+                    console.log(`Speaking example word for phoneme ${phoneme}: ${exampleWord}`);
+                    // Add a small delay before playing the tone to avoid overlap
+                    setTimeout(() => {
+                        playOscillatorSound(phonemeOscillator, frequency, "0.3s");
+                    }, 500); // 500ms delay
+                } else {
+                    // Fallback if no example word is found
+                    speak(phoneme);
+                    console.log(`Speaking phoneme directly: ${phoneme}`);
+                    playOscillatorSound(phonemeOscillator, frequency, "0.3s");
+                }
+            }
+        }
+
+        function handleEchoMagicAnswer(selectedOption, correctOption, buttonElement) {
+            // Disable all options temporarily
+            document.querySelectorAll('.letter-option').forEach(btn => btn.disabled = true);
+
+            if (selectedOption === correctOption) {
+                playSynthSound(correctSound, "G5");
+                buttonElement.classList.add('correct-answer');
+                echoMagicCorrectCount++;
+                showMessage('¡Correcto!', 'success', 1000);
+                console.log('Echo magic correct count:', echoMagicCorrectCount);
+            } else {
+                playSynthSound(incorrectSound, "C3");
+                buttonElement.classList.add('incorrect-answer');
+                // Highlight correct answer
+                Array.from(document.getElementById('phoneme-options').children).find(btn => btn.textContent.toLowerCase() === correctOption).classList.add('correct-answer');
+                showMessage('¡Incorrecto!', 'error', 1000);
+            }
+
+            setTimeout(() => {
+                // Remove feedback classes
+                document.querySelectorAll('.letter-option').forEach(btn => {
+                    btn.classList.remove('correct-answer', 'incorrect-answer');
+                    btn.disabled = false; // Re-enable for next question
+                });
+                currentEchoMagicQuestionIndex++;
+                loadEchoMagicQuestion();
+            }, 1500);
+        }
+
+        function resetActivity3() {
+            initActivity3();
+            showMessage('Actividad 3 reiniciada.', 'info');
+        }
+
+        /* --- Evaluation 1: Desafío del Barrio Secreto --- */
+        const eval1Questions = [
+            {
+                question: "¿Qué palabra tiene el fonema /p/?",
+                options: ["pato", "mesa", "sol"],
+                correct: "pato"
+            },
+            {
+                question: "¿Cuántas sílabas tiene la palabra 'elefante'?",
+                options: ["2", "3", "4"],
+                correct: "4"
+            },
+            {
+                question: "¿Cuál de estas palabras empieza con el sonido /m/?",
+                options: ["casa", "mano", "perro"],
+                correct: "mano"
+            },
+            {
+                question: "¿Qué palabra rima con 'flor'?",
+                options: ["sol", "azul", "tren"],
+                correct: "sol"
+            },
+            {
+                question: "¿Qué fonema escuchas al principio de 'árbol'?",
+                options: ["/a/", "/o/", "/e/"],
+                correct: "/a/"
+            }
+        ];
+        let currentEval1QuestionIndex = 0;
+        let eval1CorrectCount = 0;
+        let selectedEval1Option = null;
+
+        function initEvaluation1() {
+            currentEval1QuestionIndex = 0;
+            eval1CorrectCount = 0;
+            document.getElementById('eval1-continue-btn').disabled = true;
+            document.getElementById('eval1-submit-btn').textContent = 'Siguiente';
+            loadEval1Question();
+            console.log('Evaluation 1 initialized.');
+        }
+
+        function loadEval1Question() {
+            if (currentEval1QuestionIndex < eval1Questions.length) {
+                const questionData = eval1Questions[currentEval1QuestionIndex];
+                document.getElementById('eval1-question-text').textContent = questionData.question;
+                const optionsContainer = document.getElementById('eval1-options');
+                optionsContainer.innerHTML = '';
+                selectedEval1Option = null; // Reset selection
+
+                questionData.options.forEach(option => {
+                    const button = document.createElement('button');
+                    button.classList.add('eval-option-btn', 'rounded-lg');
+                    button.textContent = option;
+                    button.addEventListener('click', () => selectEval1Option(button, option));
+                    optionsContainer.appendChild(button);
+                });
+                document.getElementById('eval1-status').textContent = `Pregunta ${currentEval1QuestionIndex + 1}/5`;
+                document.getElementById('eval1-submit-btn').disabled = true; // Disable submit until option is selected
+                console.log(`Loading Eval 1 question: ${questionData.question}`);
+            } else {
+                // Evaluation finished
+                document.getElementById('eval1-status').textContent = `Resultados: ${eval1CorrectCount}/5 aciertos.`;
+                if (eval1CorrectCount >= 4) {
+                    completedActivities.evaluation1 = true;
+                    document.getElementById('eval1-continue-btn').disabled = false;
+                    showMessage('¡Evaluación 1 completada! Desbloqueaste la Evaluación 2. Puedes continuar.', 'success'); // Added message
+                    console.log('Evaluation 1 completed:', completedActivities.evaluation1);
+                } else {
+                    showMessage(`Necesitas 4 aciertos para continuar. Obtuviste ${eval1CorrectCount}. ¡Intenta de nuevo!`, 'error');
+                    document.getElementById('eval1-submit-btn').textContent = 'Reiniciar';
+                    document.getElementById('eval1-submit-btn').onclick = resetEvaluation1;
+                }
+            }
+        }
+
+        function selectEval1Option(buttonElement, option) {
+            // Clear previous selection
+            document.querySelectorAll('.eval-option-btn').forEach(btn => btn.classList.remove('selected'));
+            buttonElement.classList.add('selected');
+            selectedEval1Option = option;
+            document.getElementById('eval1-submit-btn').disabled = false; // Enable submit
+            console.log('Selected option:', selectedEval1Option);
+        }
+
+        function submitEval1Answer() {
+            if (selectedEval1Option === null) {
+                showMessage('Por favor, selecciona una opción.', 'info');
+                return;
+            }
+
+            const questionData = eval1Questions[currentEval1QuestionIndex];
+            const isCorrect = (selectedEval1Option === questionData.correct);
+
+            // Provide feedback visually
+            document.querySelectorAll('.eval-option-btn').forEach(btn => {
+                btn.disabled = true; // Disable all options
+                if (btn.textContent === questionData.correct) {
+                    btn.classList.add('correct-feedback');
+                } else if (btn.textContent === selectedEval1Option) {
+                    btn.classList.add('incorrect-feedback');
+                }
+            });
+
+            if (isCorrect) {
+                playSynthSound(correctSound, "G5");
+                eval1CorrectCount++;
+                showMessage('¡Correcto!', 'success', 1000);
+                console.log('Eval 1 correct count:', eval1CorrectCount);
+            } else {
+                playSynthSound(incorrectSound, "C3");
+                showMessage('¡Incorrecto!', 'error', 1000);
+            }
+
+            setTimeout(() => {
+                // Clear feedback classes and re-enable buttons
+                document.querySelectorAll('.eval-option-btn').forEach(btn => {
+                    btn.classList.remove('selected', 'correct-feedback', 'incorrect-feedback');
+                    btn.disabled = false;
+                });
+                currentEval1QuestionIndex++;
+                loadEval1Question();
+            }, 1500);
+        }
+
+        function resetEvaluation1() {
+            initEvaluation1();
+            showMessage('Evaluación 1 reiniciada.', 'info');
+        }
+
+        /* --- Evaluation 2: Taller de Palabras Mágicas --- */
+        const eval2Sentence = {
+            sentence: "El gato come pan.", // Changed to a sentence without accents
+            words: ["El", "gato", "come", "pan."] // Words for the new sentence
+        };
+
+        let eval2CorrectlyFormed = false;
+        let eval2DraggedElement = null;
+
+        function initEvaluation2() {
+            eval2CorrectlyFormed = false;
+            document.getElementById('eval2-status').textContent = `Oración correcta: 0/1`;
+            document.getElementById('eval2-continue-btn').disabled = true;
+            loadEval2Sentence();
+            console.log('Evaluation 2 initialized.');
+        }
+
+        function loadEval2Sentence() {
+            const sentenceTargetArea = document.getElementById('sentence-target-area');
+            const wordOptionsEval2 = document.getElementById('word-options-eval2');
+            sentenceTargetArea.innerHTML = '';
+            wordOptionsEval2.innerHTML = '';
+
+            // Add placeholder for words in target area
+            sentenceTargetArea.textContent = 'Arrastra las palabras aquí...';
+            sentenceTargetArea.style.textAlign = 'center';
+            sentenceTargetArea.style.color = '#999';
+
+            // Create draggable words (shuffled)
+            // Ensure words are trimmed before creating draggable elements
+            const shuffledWords = [...eval2Sentence.words].map(word => word.trim()).sort(() => Math.random() - 0.5);
+            shuffledWords.forEach(word => {
+                const draggable = document.createElement('div');
+                draggable.classList.add('draggable-word', 'rounded-lg');
+                draggable.textContent = word; // Text content retains accent
+                draggable.setAttribute('draggable', true);
+                draggable.addEventListener('dragstart', handleEval2DragStart);
+                wordOptionsEval2.appendChild(draggable);
+            });
+
+            // Add drag and drop listeners to target area
+            sentenceTargetArea.addEventListener('dragover', handleEval2DragOver);
+            sentenceTargetArea.addEventListener('drop', handleEval2Drop);
+            console.log('Loading Eval 2 sentence.');
+
+            // Clear any previous debug display
+            const existingDebugDisplay = document.getElementById('debug-sentence-display');
+            if (existingDebugDisplay) {
+                existingDebugDisplay.remove();
+            }
+        }
+
+        function handleEval2DragStart(event) {
+            eval2DraggedElement = event.target;
+            event.dataTransfer.setData('text/plain', event.target.textContent);
+            event.dataTransfer.effectAllowed = 'move';
+        }
+
+        function handleEval2DragOver(event) {
+            event.preventDefault();
+            event.dataTransfer.dropEffect = 'move';
+        }
+
+        function handleEval2Drop(event) {
+            event.preventDefault();
+            if (eval2DraggedElement) {
+                const sentenceTargetArea = document.getElementById('sentence-target-area');
+                if (sentenceTargetArea.textContent.trim() === 'Arrastra las palabras aquí...') {
+                    sentenceTargetArea.innerHTML = ''; // Clear placeholder
+                    sentenceTargetArea.style.textAlign = 'left';
+                    sentenceTargetArea.style.color = '#333';
+                }
+                // Append the dragged word as a span element, ensuring its text is trimmed
+                const newWordSpan = document.createElement('span');
+                newWordSpan.textContent = eval2DraggedElement.textContent.trim();
+                newWordSpan.classList.add('dropped-word'); // Add a class for easier selection
+                sentenceTargetArea.appendChild(newWordSpan);
+
+                // Remove the dragged element from the options area
+                eval2DraggedElement.remove();
+                checkEval2Completion();
+            }
+        }
+
+        function checkEval2Completion() {
+            const sentenceTargetArea = document.getElementById('sentence-target-area');
+            const wordElements = Array.from(sentenceTargetArea.querySelectorAll('span.dropped-word'));
+
+            // Step 1: Process the formed sentence from user input
+            // Get raw text, trim each word, then normalize (remove accents) and join.
+            const formedSentenceForComparison = wordElements.map(span =>
+                span.textContent.trim().normalize('NFD').replace(/[\u0300-\u036f]/g, "")
+            ).join(' ').replace(/\s+/g, ' ').trim(); // Ensure single spaces and final trim
+
+            // Step 2: Process the expected sentence from definition
+            // Take the original sentence, normalize (remove accents) and clean spaces.
+            const expectedSentenceForComparison = eval2Sentence.sentence.normalize('NFD').replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, ' ').trim();
+
+
+            // Add a temporary visual feedback for the user
+            let debugDisplay = document.getElementById('debug-sentence-display');
+            if (!debugDisplay) {
+                debugDisplay = document.createElement('p');
+                debugDisplay.id = 'debug-sentence-display';
+                debugDisplay.style.fontSize = '1rem';
+                debugDisplay.style.color = 'blue';
+                debugDisplay.style.marginTop = '10px';
+                debugDisplay.style.border = '1px solid blue';
+                debugDisplay.style.padding = '5px';
+                debugDisplay.style.borderRadius = '5px';
+                sentenceTargetArea.parentNode.insertBefore(debugDisplay, sentenceTargetArea.nextSibling);
+            }
+            debugDisplay.textContent = `Tu oración (sistema, normalizada): "${formedSentenceForComparison}"`;
+
+
+            console.log('--- Debugging Sentence Validation ---');
+            console.log('Raw content of target area:', sentenceTargetArea.textContent);
+            console.log('Formed words (trimmed & normalized):', wordElements.map(span => span.textContent.trim().normalize('NFD').replace(/[\u0300-\u036f]/g, "")));
+            console.log('Formed sentence (normalized):', `'${formedSentenceForComparison}'`);
+            console.log('Formed sentence JSON stringified (normalized):', JSON.stringify(formedSentenceForComparison));
+            console.log('Formed sentence length (normalized):', formedSentenceForComparison.length);
+            console.log('Formed sentence char codes (decimal, normalized):', Array.from(formedSentenceForComparison).map(char => char.charCodeAt(0)));
+
+            console.log('Expected sentence (normalized for comparison):', `'${expectedSentenceForComparison}'`);
+            console.log('Expected sentence JSON stringified (normalized):', JSON.stringify(expectedSentenceForComparison));
+            console.log('Expected sentence length (normalized):', expectedSentenceForComparison.length);
+            console.log('Expected sentence char codes (decimal, normalized):', Array.from(expectedSentenceForComparison).map(char => char.charCodeAt(0)));
+            console.log('Comparison result (formed === expected, normalized):', formedSentenceForComparison === expectedSentenceForComparison);
+
+            if (formedSentenceForComparison !== expectedSentenceForComparison) {
+                console.log('--- Character by Character Comparison (if different, normalized) ---');
+                const maxLength = Math.max(formedSentenceForComparison.length, expectedSentenceForComparison.length);
+                for (let i = 0; i < maxLength; i++) {
+                    const charFormed = formedSentenceForComparison[i] || '';
+                    const codeFormed = charFormed.charCodeAt(0) || 'N/A';
+                    const charExpected = expectedSentenceForComparison[i] || '';
+                    const codeExpected = charExpected.charCodeAt(0) || 'N/A';
+                    if (charFormed !== charExpected) {
+                        console.log(`Pos ${i}: Formed='${charFormed}' (${codeFormed}), Expected='${charExpected}' (${codeExpected})`);
+                    }
+                }
+                console.log('-----------------------------------');
+            }
+
+
+            if (formedSentenceForComparison === expectedSentenceForComparison) {
+                playSynthSound(correctSound, "G5");
+                speak(eval2Sentence.sentence); // Speak the original sentence with accent
+                showMessage('¡Oración correcta!', 'success');
+                eval2CorrectlyFormed = true;
+                document.getElementById('eval2-status').textContent = `Oración correcta: 1/1`;
+                completedActivities.evaluation2 = true;
+                document.getElementById('eval2-continue-btn').disabled = false;
+                showMessage('¡Evaluación 2 completada! Puedes finalizar el juego.', 'success');
+                console.log('Evaluation 2 completed:', completedActivities.evaluation2);
+            } else {
+                showMessage('¡Oración incorrecta! Reorganiza las palabras.', 'error', 1500);
+            }
+        }
+
+        function resetEvaluation2() {
+            initEvaluation2();
+            showMessage('Evaluación 2 reiniciada.', 'info');
+        }
+
+        /* --- Final Screen: Diploma --- */
+        function drawDiploma() {
+            const canvas = document.getElementById('diploma-canvas');
+            const ctx = canvas.getContext('2d');
+            const playerName = document.getElementById('player-name-input').value || 'Jugador';
+
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Background
+            ctx.fillStyle = '#FFFACD'; // Lemon Chiffon
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Border
+            ctx.strokeStyle = '#4B0082'; // Indigo
+            ctx.lineWidth = 10;
+            ctx.strokeRect(5, 5, canvas.width - 10, canvas.height - 10);
+
+            // Title
+            ctx.fillStyle = '#8B0000'; // Dark Red
+            ctx.font = 'bold 36px Inter';
+            ctx.textAlign = 'center';
+            ctx.fillText('DIPLOMA', canvas.width / 2, 70);
+
+            ctx.font = 'bold 24px Inter';
+            ctx.fillText('de Conciencia Fonológica', canvas.width / 2, 110);
+
+            // Awarded to
+            ctx.fillStyle = '#333';
+            ctx.font = '20px Inter';
+            ctx.fillText('Otorgado a:', canvas.width / 2, 170);
+
+            // Player Name
+            ctx.fillStyle = '#4B0082';
+            ctx.font = 'bold 40px Inter';
+            ctx.fillText(playerName.toUpperCase(), canvas.width / 2, 230);
+
+            // Achievement message
+            ctx.fillStyle = '#333';
+            ctx.font = '18px Inter';
+            ctx.fillText('Por haber completado con éxito todas las actividades', canvas.width / 2, 280);
+            ctx.fillText('y evaluaciones de la Ciudad de Letras.', canvas.width / 2, 310);
+
+            // Date
+            ctx.font = '16px Inter';
+            const today = new Date();
+            ctx.fillText(`Fecha: ${today.toLocaleDateString('es-ES')}`, canvas.width / 2, 360);
+        }
+
+        document.getElementById('generate-diploma-btn').addEventListener('click', drawDiploma);
+
+        document.getElementById('diploma-download-btn').addEventListener('click', () => {
+            const canvas = document.getElementById('diploma-canvas');
+            const link = document.createElement('a');
+            link.download = 'Diploma_Ciudad_de_Letras.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+            showMessage('¡Diploma descargado!', 'success');
+        });
+
+        // Initial setup on window load
+        window.onload = function() {
+            initializeAudioSynths(); // Call initializeAudioSynths here
+            showScreen('home'); // Start with the home screen
+        };
+    </script>
+</body>
+</html>
